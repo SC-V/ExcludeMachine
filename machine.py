@@ -180,13 +180,13 @@ TODAY = datetime.datetime.now(timezone(client_timezone)).strftime("%Y-%m-%d") \
     if option == "Today" \
     else datetime.datetime.now(timezone(client_timezone)) - datetime.timedelta(days=1)
 
-df = get_cached_report("Received")
-filtered_frame = df[df['status'].isin(["performer_lookup"])]
-
 st.markdown(f"# Exclude machine")
 
 if st.button("Reload data", type="primary"):
     st.cache_data.clear()
+
+df = get_cached_report("Received")
+filtered_frame = df[df['status'].isin(["performer_lookup"])]
 
 col_metric_1, _, col_metric_2, col_metric_3, _ = st.columns(5)
 
