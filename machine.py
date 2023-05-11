@@ -202,9 +202,9 @@ else:
 
 number_of_claims = len(filtered_frame)
 number_of_excludes = len(orders_out_of_zone)
-exclusion_rate = number_of_excludes / number_of_claims
+exclusion_rate = number_of_excludes / number_of_claims * -1
 col_metric_2.metric(f"Claims", number_of_claims)
-col_metric_3.metric(f"Out of zone 🔥", number_of_excludes, delta=f"{exclusion_rate:.0%}", delta_color="inverse")
+col_metric_3.metric(f"Out of zone 🔥", number_of_excludes, delta=f"{exclusion_rate:.0%}")
 
 with st.expander("📋 All received orders", expanded=False):
     st.dataframe(filtered_frame)
