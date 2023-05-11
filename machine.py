@@ -191,7 +191,7 @@ if st.button("Reload data", type="primary"):
 col_metric_1, _, col_metric_2, col_metric_3, _ = st.columns(5)
 
 with col_metric_1:
-    delivery_type = st.selectbox("Delivery type", ["SDD", "NDD near", "NDD far"])
+    delivery_type = st.selectbox("Delivery zone", ["SDD", "NDD near", "NDD far"])
 
 if delivery_type == "SDD":
     orders_out_of_zone = filtered_frame[filtered_frame['sdd_zone'].isin([False])][["claim_id", "created_time", "client_id", "receiver_address"]]
