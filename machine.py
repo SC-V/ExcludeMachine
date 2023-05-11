@@ -224,7 +224,7 @@ with st.expander("🌎 Orders on the map", expanded=False):
         'GeoJsonLayer',
         SDD_ZONE_LINK,
         opacity=0.1,
-        stroked=False,
+        stroked=True if delivery_type == "SDD" else False,
         filled=True,
         extruded=False,
         wireframe=True,
@@ -233,13 +233,11 @@ with st.expander("🌎 Orders on the map", expanded=False):
         pickable=False
     )
 
-    print(geojson_sdd_area)
-
     geojson_near_ndd_area = pdk.Layer(
         'GeoJsonLayer',
         NDD_NEAR_ZONE_LINK,
         opacity=0.1,
-        stroked=False,
+        stroked=True if delivery_type == "NDD near" else False,
         filled=True,
         extruded=False,
         wireframe=True,
@@ -252,7 +250,7 @@ with st.expander("🌎 Orders on the map", expanded=False):
         'GeoJsonLayer',
         NDD_FAR_ZONE_LINK,
         opacity=0.1,
-        stroked=False,
+        stroked=True if delivery_type == "NDD far" else False,
         filled=True,
         extruded=False,
         wireframe=True,
