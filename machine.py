@@ -229,7 +229,7 @@ with st.expander("🌎 Orders on the map", expanded=False):
         extruded=False,
         wireframe=True,
         get_fill_color='[223, 30, 38]',
-        get_line_color='[223, 30, 38]',
+        get_line_color='[52, 255, 20]' if delivery_type == "SDD" else '[223, 30, 38]',
         pickable=False
     )
 
@@ -244,7 +244,7 @@ with st.expander("🌎 Orders on the map", expanded=False):
         extruded=False,
         wireframe=True,
         get_fill_color='[243, 114, 32]',
-        get_line_color='[243, 114, 32]',
+        get_line_color='[52, 255, 20]' if delivery_type == "NDD near" else '[243, 114, 32]',
         pickable=False
     )
 
@@ -257,7 +257,7 @@ with st.expander("🌎 Orders on the map", expanded=False):
         extruded=False,
         wireframe=True,
         get_fill_color='[255, 213, 0]',
-        get_line_color='[255, 213, 0]',
+        get_line_color='[52, 255, 20]' if delivery_type == "NDD far" else '[255, 213, 0]',
         pickable=False
     )
 
