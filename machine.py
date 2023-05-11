@@ -14,7 +14,8 @@ st.set_page_config(layout="wide")
 
 CLAIM_SECRETS = st.secrets["CLAIM_SECRETS"]
 API_URL = st.secrets["API_URL"]
-FILE_BUFFER = io.BytesIO()
+FILE_BUFFER_ALL = io.BytesIO()
+FILE_BUFFER_EXC = io.BytesIO()
 
 SDD_ZONE_LINK = r"https://raw.githubusercontent.com/SC-V/ExcludeMachine/main/sdd.json"
 sdd_geometry = json.loads(open('sdd.json').read())
@@ -168,7 +169,7 @@ def get_report(option="Today", start_=None, end_=None) -> pandas.DataFrame:
 option = "Received"
 
 
-@st.cache_data(ttl=1800.0)
+@st.cache_data(ttl=3600.0)
 def get_cached_report(option):
     report = get_report(option)
     return report
@@ -310,7 +311,7 @@ with st.expander("🔥 Exclude those orders", expanded=False):
     st.dataframe(orders_out_of_zone)
 
 print(f"{datetime.datetime.now()}: Rendering download button")
-with pandas.ExcelWriter(FILE_BUFFER, engine='xlsxwriter') as writer:
+with pandas.ExcelWriter(FILE_BUFFER_ALL, engine='xlsxwriter') as writer:
     filtered_frame["status_time"] = filtered_frame["status_time"].apply(
         lambda a: pandas.to_datetime(a).date()).reindex()
     filtered_frame["created_time"] = filtered_frame["created_time"].apply(
@@ -325,7 +326,7 @@ with pandas.ExcelWriter(FILE_BUFFER, engine='xlsxwriter') as writer:
         mime="application/vnd.ms-excel"
     )
 
-with pandas.ExcelWriter(FILE_BUFFER, engine='xlsxwriter') as writer:
+with pandas.ExcelWriter(FILE_BUFFER_EXC, engine='xlsxwriter') as writer:
     orders_out_of_zone["created_time"] = orders_out_of_zone["created_time"].apply(
         lambda a: pandas.to_datetime(a).date()).reindex()
     orders_out_of_zone.to_excel(writer, sheet_name='wh_exclude_report')
