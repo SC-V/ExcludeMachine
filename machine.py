@@ -200,8 +200,11 @@ elif delivery_type == "NDD near":
 else:
     orders_out_of_zone = filtered_frame[filtered_frame['far_ndd_zone'].isin([False])][["claim_id", "created_time", "client_id", "receiver_address"]]
 
-col_metric_2.metric(f"Claims", len(filtered_frame))
-col_metric_3.metric(f"Out of zone 🔥", len(orders_out_of_zone))
+number_of_claims = len(filtered_frame)
+number_of_excludes = len(orders_out_of_zone)
+exclusion_rate = number_of_excludes / number_of_claims
+col_metric_2.metric(f"Claims", number_of_claims)
+col_metric_3.metric(f"Out of zone 🔥", number_of_excludes, delta=f"{exclusion_rate:.0%}", delta_color="inverse")
 
 with st.expander("📋 All received orders", expanded=False):
     st.dataframe(filtered_frame)
