@@ -321,7 +321,7 @@ with pandas.ExcelWriter(FILE_BUFFER_ALL, engine='xlsxwriter') as writer:
 
     st.download_button(
         label="Download all orders",
-        data=FILE_BUFFER,
+        data=FILE_BUFFER_ALL,
         file_name=f"route_report_{TODAY}.xlsx",
         mime="application/vnd.ms-excel"
     )
@@ -334,7 +334,7 @@ with pandas.ExcelWriter(FILE_BUFFER_EXC, engine='xlsxwriter') as writer:
 
     st.download_button(
         label="Download excluded orders",
-        data=FILE_BUFFER,
+        data=FILE_BUFFER_EXC,
         file_name=f"excluded_orders_{TODAY}.xlsx",
         mime="application/vnd.ms-excel"
     )
