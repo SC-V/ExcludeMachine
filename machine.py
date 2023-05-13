@@ -12,6 +12,9 @@ import dateutil.parser
 import asyncio
 import httpx
 
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+async_client = httpx.AsyncClient()
 st.set_page_config(layout="wide")
 
 CLAIM_SECRETS = st.secrets["CLAIM_SECRETS"]
