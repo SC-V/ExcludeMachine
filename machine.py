@@ -54,6 +54,7 @@ def get_claims(secret, date_from, date_to, cursor=0):
     }
 
     response = requests.request("POST", url, headers=headers, data=payload)
+
     claims = json.loads(response.text)
     cursor = None
     try:
@@ -67,7 +68,42 @@ def get_claims(secret, date_from, date_to, cursor=0):
         return [], None
 
 
-def get_report(option="Today", start_=None, end_=None) -> pandas.DataFrame:
+async def get_async_claims(secret, date_from, date_to, cursor=0):
+    url = API_URL
+    timezone_offset = "-04:00"
+    payload = {
+        "created_from": f"{date_from}T00:00:00{timezone_offset}",
+        "created_to": f"{date_to}T23:59:59{timezone_offset}",
+        "limit": 1000,
+        "cursor": cursor
+    } if cursor == 0 else {"cursor": cursor}
+
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept-Language': 'en',
+        'Authorization': f"Bearer {secret}"
+    }
+
+    response_await = await async_client.post(
+        url=url,
+        json=payload,
+        headers=headers
+    )
+
+    claims = json.loads(response_await.text)
+    cursor = None
+    try:
+        cursor = claims['cursor']
+        print(f"CURSOR: {cursor}")
+    except:
+        print("LAST PAGE PROCESSED")
+    try:
+        return {"key": secret, "claims": claims['claims'], "cursor": cursor}
+    except:
+        return {"key": secret, "claims": [], "cursor": None}
+
+
+async def get_report(option="Today", start_=None, end_=None) -> pandas.DataFrame:
     offset_back = 0
     if option == "Yesterday":
         offset_back = 1
@@ -78,82 +114,68 @@ def get_report(option="Today", start_=None, end_=None) -> pandas.DataFrame:
 
     client_timezone = "America/Santiago"
 
-    if option == "Monthly":
-        start_ = "2023-04-15"
-        end_ = "2023-05-31"
-        today = datetime.datetime.now(timezone(client_timezone))
-        date_from_offset = datetime.datetime.fromisoformat(start_).astimezone(
-            timezone(client_timezone)) - datetime.timedelta(days=1)
-        date_from = date_from_offset.strftime("%Y-%m-%d")
-        date_to = end_
-    elif option == "Weekly":
-        start_ = "2023-05-08"
-        end_ = "2023-05-14"
-        today = datetime.datetime.now(timezone(client_timezone))
-        date_from_offset = datetime.datetime.fromisoformat(start_).astimezone(
-            timezone(client_timezone)) - datetime.timedelta(days=1)
-        date_from = date_from_offset.strftime("%Y-%m-%d")
-        date_to = end_
-    elif option == "Received":
-        today = datetime.datetime.now(timezone(client_timezone)) - datetime.timedelta(days=offset_back)
-        search_from = today.replace(hour=0, minute=0, second=0, microsecond=0) - datetime.timedelta(days=7)
-        search_to = today.replace(hour=23, minute=59, second=59, microsecond=999999) + datetime.timedelta(days=2)
-        date_from = search_from.strftime("%Y-%m-%d")
-        date_to = search_to.strftime("%Y-%m-%d")
-    else:
-        today = datetime.datetime.now(timezone(client_timezone)) - datetime.timedelta(days=offset_back)
-        search_from = today.replace(hour=0, minute=0, second=0, microsecond=0) - datetime.timedelta(days=2)
-        search_to = today.replace(hour=23, minute=59, second=59, microsecond=999999)
-        date_from = search_from.strftime("%Y-%m-%d")
-        date_to = search_to.strftime("%Y-%m-%d")
-
+    today = datetime.datetime.now(timezone(client_timezone)) - datetime.timedelta(days=offset_back)
+    search_from = today.replace(hour=0, minute=0, second=0, microsecond=0) - datetime.timedelta(days=7)
+    search_to = today.replace(hour=23, minute=59, second=59, microsecond=999999) + datetime.timedelta(days=2)
+    date_from = search_from.strftime("%Y-%m-%d")
+    date_to = search_to.strftime("%Y-%m-%d")
     today = today.strftime("%Y-%m-%d")
+
     report = []
-    for secret in CLAIM_SECRETS:
-        claims, cursor = get_claims(secret, date_from, date_to)
+    all_claims = []
+    async_results = []
+
+    query_list = [(secret, date_from, date_to) for secret in CLAIM_SECRETS]
+    results = await asyncio.gather(*[get_async_claims(*query) for query in query_list])
+    async_results.extend(results)
+
+    for result in async_results:
+        all_claims = all_claims + result["claims"]
+        cursor = result["cursor"]
         while cursor:
-            new_page_claims, cursor = get_claims(secret, date_from, date_to, cursor)
-            claims = claims + new_page_claims
-        print(f"{datetime.datetime.now()}: Processing {len(claims)} claims")
-        for claim in claims:
-            try:
-                claim_from_time = claim['same_day_data']['delivery_interval']['from']
-            except:
+            new_page_claims, cursor = get_claims(result["key"], date_from, date_to, cursor)
+            all_claims = all_claims + new_page_claims
+
+    print(f"{datetime.datetime.now()}: Processing {len(all_claims)} claims")
+    for claim in all_claims:
+        try:
+            claim_from_time = claim['same_day_data']['delivery_interval']['from']
+        except:
+            continue
+        cutoff_time = datetime.datetime.fromisoformat(claim_from_time).astimezone(timezone(client_timezone))
+        cutoff_date = cutoff_time.strftime("%Y-%m-%d")
+        if not start_ and option != "Received":
+            if cutoff_date != today:
                 continue
-            cutoff_time = datetime.datetime.fromisoformat(claim_from_time).astimezone(timezone(client_timezone))
-            cutoff_date = cutoff_time.strftime("%Y-%m-%d")
-            if not start_ and option != "Received":
-                if cutoff_date != today:
-                    continue
-            report_cutoff = cutoff_time.strftime("%Y-%m-%d %H:%M")
-            try:
-                report_client_id = claim['route_points'][1]['external_order_id']
-            except:
-                report_client_id = "External ID not set"
-            report_claim_id = claim['id']
-            try:
-                report_lo_code = claim['items'][0]['extra_id']
-            except:
-                report_lo_code = "No LO code"
-            report_receiver_address = claim['route_points'][1]['address']['fullname']
-            report_receiver_phone = claim['route_points'][1]['contact']['phone']
-            report_receiver_name = claim['route_points'][1]['contact']['name']
-            try:
-                report_comment = claim['comment']
-            except:
-                report_comment = "Missing comment in claim"
-            report_status = claim['status']
-            report_created_time = dateutil.parser.isoparse(claim['created_ts']).astimezone(timezone(client_timezone))
-            report_status_time = dateutil.parser.isoparse(claim['updated_ts']).astimezone(timezone(client_timezone))
-            report_longitude = claim['route_points'][1]['address']['coordinates'][0]
-            report_latitude = claim['route_points'][1]['address']['coordinates'][1]
-            report_store_longitude = claim['route_points'][0]['address']['coordinates'][0]
-            report_store_latitude = claim['route_points'][0]['address']['coordinates'][1]
-            report_corp_id = claim['corp_client_id']
-            row = [report_cutoff, report_created_time, report_client_id, report_claim_id, report_lo_code, report_status,
-                   report_status_time, report_receiver_address, report_receiver_phone, report_receiver_name,
-                   report_comment, report_longitude, report_latitude, report_store_longitude, report_store_latitude, report_corp_id]
-            report.append(row)
+        report_cutoff = cutoff_time.strftime("%Y-%m-%d %H:%M")
+        try:
+            report_client_id = claim['route_points'][1]['external_order_id']
+        except:
+            report_client_id = "External ID not set"
+        report_claim_id = claim['id']
+        try:
+            report_lo_code = claim['items'][0]['extra_id']
+        except:
+            report_lo_code = "No LO code"
+        report_receiver_address = claim['route_points'][1]['address']['fullname']
+        report_receiver_phone = claim['route_points'][1]['contact']['phone']
+        report_receiver_name = claim['route_points'][1]['contact']['name']
+        try:
+            report_comment = claim['comment']
+        except:
+            report_comment = "Missing comment in claim"
+        report_status = claim['status']
+        report_created_time = dateutil.parser.isoparse(claim['created_ts']).astimezone(timezone(client_timezone))
+        report_status_time = dateutil.parser.isoparse(claim['updated_ts']).astimezone(timezone(client_timezone))
+        report_longitude = claim['route_points'][1]['address']['coordinates'][0]
+        report_latitude = claim['route_points'][1]['address']['coordinates'][1]
+        report_store_longitude = claim['route_points'][0]['address']['coordinates'][0]
+        report_store_latitude = claim['route_points'][0]['address']['coordinates'][1]
+        report_corp_id = claim['corp_client_id']
+        row = [report_cutoff, report_created_time, report_client_id, report_claim_id, report_lo_code, report_status,
+               report_status_time, report_receiver_address, report_receiver_phone, report_receiver_name,
+               report_comment, report_longitude, report_latitude, report_store_longitude, report_store_latitude, report_corp_id]
+        report.append(row)
 
     print(f"{datetime.datetime.now()}: Building dataframe")
     result_frame = pandas.DataFrame(report,
@@ -171,14 +193,9 @@ option = "Received"
 
 @st.cache_data(ttl=3600.0)
 def get_cached_report(option):
-    report = get_report(option)
+    print(f"{datetime.datetime.now()}: Started")
+    report = asyncio.run(get_report(option))
     return report
-
-
-client_timezone = "America/Santiago"
-TODAY = datetime.datetime.now(timezone(client_timezone)).strftime("%Y-%m-%d") \
-    if option == "Today" \
-    else datetime.datetime.now(timezone(client_timezone)) - datetime.timedelta(days=1)
 
 st.markdown(f"# Exclude machine")
 
