@@ -336,6 +336,8 @@ with st.expander("🌎 Orders on the map", expanded=False):
 with st.expander("🔥 Exclude those orders", expanded=False):
     st.dataframe(orders_out_of_zone)
 
+TODAY = datetime.datetime.now(timezone(client_timezone))
+    
 print(f"{datetime.datetime.now()}: Rendering download button")
 with pandas.ExcelWriter(FILE_BUFFER_ALL, engine='xlsxwriter') as writer:
     filtered_frame["status_time"] = filtered_frame["status_time"].apply(
